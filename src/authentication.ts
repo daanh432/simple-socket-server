@@ -129,31 +129,68 @@ export class AuthenticationManager {
   }
 
   constructor() {
-    this.authWebhookUrl = process.env.AUTH_WEBHOOK_URL ?? 'http://localhost:8080/api/v1/socket/auth';
-    this.rulesWebhookurl = process.env.AUTH_RULES_WEBHOOK_URL ?? 'http://localhost:8080/api/v1/socket/rules';
+    this.authWebhookUrl = process.env.AUTH_WEBHOOK_URL ?? 'http://127.0.0.1:8080/api/v1/socket/auth';
+    this.rulesWebhookurl = process.env.AUTH_RULES_WEBHOOK_URL ?? 'http://127.0.0.1:8080/api/v1/socket/rules';
   }
 
   public async authenticate(data: unknown, socket: SocketConnection): Promise<boolean> {
-    // using node-fetch
-    // send post to webhookUrl with data and on successfull response return the response as if it is the user info
-    // on error return null
+    try {
+      const response = await fetch(this.authWebhookUrl, {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      });
 
-    socket.setUser({ id: '1234', role: 'user' });
-    return true;
+      if (response.status >= 500) {
+        console.error(`Error whilst retrieving user info from auth webhook.`, response);
+        return false;
+      } else if (response.status !== 200) {
+        return false;
+      }
+
+      socket.setUser(await response.json());
+      return true;
+    } catch (error) {
+      console.error(`Error whilst retrieving user info from auth webhook.`, error);
+      return false;
+    }
   }
 
   private async fetchRules(): Promise<RuleAccessSystem> {
-    // using node-fetch send get to rulesWebhookurl and return the response as a RuleAccessSystem
-    // cache the response for 5 minutes at minimum or respect the cache control header
+    if (this._ruleAccessSystemCacheTime > Date.now()) {
+      return this._ruleAccessSystem!;
+    }
 
-    const ruleFile = {
-      chat: {
-        publish: true,
-        subscribe: true,
-      },
-    };
+    try {
+      const response = await fetch(this.rulesWebhookurl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
 
-    return new RuleAccessSystem(ruleFile);
+      // validate if the response was successful
+      // if not return an empty RuleAccessSystem
+      if (response.status !== 200) {
+        console.error(`Error whilst retrieving rules from rules webhook.`, response);
+        return new RuleAccessSystem({});
+      }
+
+      const rules = await response.json();
+
+      // validate if the response is a valid Record<string, Rule> type
+      // if not return an empty RuleAccessSystem
+      if (typeof rules !== 'object' || Array.isArray(rules)) {
+        console.error(`Error whilst retrieving rules from rules webhook.`, rules);
+        return new RuleAccessSystem({});
+      }
+
+      // create a new RuleAccessSystem and cache it
+      this._ruleAccessSystem = new RuleAccessSystem(rules as Record<string, Rule>);
+      this._ruleAccessSystemCacheTime = Date.now() + 5 * 60 * 1000; // 5 minutes
+      return this._ruleAccessSystem;
+    } catch (error) {
+      console.error(`Error whilst retrieving rules from rules webhook.`, error);
+      return new RuleAccessSystem({});
+    }
   }
 
   public async canPublish(topic: string, socket: SocketConnection): Promise<boolean> {

@@ -94,7 +94,10 @@
 
     socket.on('auth', (msg) => {
       if (msg.auth === 'required') {
-        socket.emit('auth', {});
+        socket.emit('auth', {
+          username: 'BACKEND',
+          password: 'xxxxxxxx',
+        });
       } else if (msg.auth === 'success') {
         socket.emit('subscribe', {
           topic: 'chat',

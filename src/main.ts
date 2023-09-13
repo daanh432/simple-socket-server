@@ -11,6 +11,7 @@ import { AuthenticationManager } from './authentication';
 
 // @ts-ignore
 global.logLevel = process.env.LOG_LEVEL ?? 'debug';
+const port = process.env.PORT ?? 3000;
 
 configureLogging();
 testRuleSystem();
