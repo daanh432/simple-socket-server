@@ -11,8 +11,8 @@ import { AuthenticationManager } from './authentication';
 
 // @ts-ignore
 global.logLevel = process.env.LOG_LEVEL ?? 'info';
-const port = process.env.PORT ?? 3000;
-const path = process.env.PATH ?? '/socket.io/';
+const port = process.env.SOCKET_PORT ?? 3000;
+const path = process.env.SOCKET_PATH ?? '/socket.io/';
 
 configureLogging();
 testRuleSystem();
@@ -33,7 +33,7 @@ export class SocketServer {
 
   constructor() {
     // If development mode, serve the static index file
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV == undefined || process.env.NODE_ENV === 'development') {
       this.app.get('/', (req, res) => {
         res.sendFile(resolve(__dirname, '../', 'index.html'));
       });
@@ -43,18 +43,30 @@ export class SocketServer {
       console.log(`Socket.io running at http://localhost:${port}${path}`);
     });
 
+    this.io.use(async (socket, next) => {
+      // If the user is already authenticated, allow the packet to be sent
+      const socketConnection = ConnectionManager.getInstance().onOpen(socket);
+      if (socketConnection.getUser() !== undefined) {
+        return next();
+      }
+
+      const authData = socket.handshake.auth;
+      if (authData === undefined) {
+        return next(new Error('Authentication data not provided'));
+      }
+
+      const loggedIn = await AuthenticationManager.getInstance().authenticate(authData, socketConnection);
+      if (!loggedIn) {
+        return next(new Error('Authentication failed'));
+      }
+
+      return next();
+    });
+
     this.io.on('connection', (socket) => {
       const socketConnection = ConnectionManager.getInstance().onOpen(socket);
       socket.on('disconnect', async () => {
         ConnectionManager.getInstance().onClose(socket);
-      });
-
-      socket.emit('auth', { auth: 'required' });
-      socket.on('auth', async (e) => {
-        const loggedIn = await AuthenticationManager.getInstance().authenticate(e, socketConnection);
-        if (loggedIn) {
-          socket.emit('auth', { auth: 'success' });
-        }
       });
 
       socket.on('subscribe', (e) => subscribeHandler(socketConnection, e));

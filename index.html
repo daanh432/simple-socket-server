@@ -62,7 +62,14 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
+    const socket = io({
+      auth: (cb) => {
+        cb({
+          username: 'BACKEND',
+          password: 'xxxxxxxx',
+        });
+      },
+    });
 
     const form = document.getElementById('form');
     const input = document.getElementById('input');
@@ -90,19 +97,14 @@
 
     socket.on('connect', () => {
       console.log('Subscribe');
+
+      socket.emit('subscribe', {
+        topic: 'chat',
+      });
     });
 
-    socket.on('auth', (msg) => {
-      if (msg.auth === 'required') {
-        socket.emit('auth', {
-          username: 'BACKEND',
-          password: 'xxxxxxxx',
-        });
-      } else if (msg.auth === 'success') {
-        socket.emit('subscribe', {
-          topic: 'chat',
-        });
-      }
+    socket.on('connect_error', (err) => {
+      console.log(err.message); // prints the message associated with the error
     });
 
     socket.on('/sub/-/chat', (msg) => {
