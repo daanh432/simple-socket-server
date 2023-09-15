@@ -38,10 +38,10 @@ export const emitHandler = async (socket: SocketConnection, e: EmitEvent<Message
   if (e.content.type == undefined) return invalidData();
   if (e.content.message == undefined) return invalidData();
 
-  console.debug(`Emit request from ${socket.id} for ${e.topic}`, e.content);
   const canPublish = await AuthenticationManager.getInstance().canPublish(e.topic, socket);
   console.debug(`Emit request from ${socket.id} for ${e.topic} is ${canPublish ? 'allowed' : 'denied'}`);
   if (canPublish) {
+    e.content.type = e.content.type.toLowerCase() as MessageType;
     SubscriptionManager.getInstance().sendMessage(e.topic, e.content);
   }
 };
