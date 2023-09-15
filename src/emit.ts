@@ -23,6 +23,16 @@ const invalidData = () => {
 };
 
 export const emitHandler = async (socket: SocketConnection, e: EmitEvent<Message<unknown>>): Promise<void> => {
+  // if e is of type string then parse it to json first
+  if (typeof e === 'string') {
+    try {
+      e = JSON.parse(e);
+    } catch (error) {
+      return invalidData();
+    }
+  }
+
+  // Validate if all items in the json are present
   if (e.topic == undefined) return invalidData();
   if (e.content == undefined) return invalidData();
   if (e.content.type == undefined) return invalidData();
