@@ -25,6 +25,10 @@ export class SocketServer {
   public readonly io = new Server(this.server, {
     path: path,
     cleanupEmptyChildNamespaces: true,
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST'],
+    }
   });
 
   public static getInstance(): SocketServer {
