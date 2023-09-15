@@ -10,8 +10,9 @@ import { testRuleSystem } from './runtime-tests';
 import { AuthenticationManager } from './authentication';
 
 // @ts-ignore
-global.logLevel = process.env.LOG_LEVEL ?? 'debug';
+global.logLevel = process.env.LOG_LEVEL ?? 'info';
 const port = process.env.PORT ?? 3000;
+const path = process.env.PATH ?? '/socket.io/';
 
 configureLogging();
 testRuleSystem();
@@ -21,19 +22,25 @@ export class SocketServer {
 
   private readonly app = express();
   private readonly server = createServer(this.app);
-  public readonly io = new Server(this.server);
+  public readonly io = new Server(this.server, {
+    path: path,
+    cleanupEmptyChildNamespaces: true,
+  });
 
   public static getInstance(): SocketServer {
     return this.instance;
   }
 
   constructor() {
-    this.app.get('/', (req, res) => {
-      res.sendFile(resolve(__dirname, '../', 'index.html'));
-    });
+    // If development mode, serve the static index file
+    if (process.env.NODE_ENV === 'development') {
+      this.app.get('/', (req, res) => {
+        res.sendFile(resolve(__dirname, '../', 'index.html'));
+      });
+    }
 
-    this.server.listen(3000, () => {
-      console.log('Server running at http://localhost:3000');
+    this.server.listen(port, () => {
+      console.log(`Socket.io running at http://localhost:${port}${path}`);
     });
 
     this.io.on('connection', (socket) => {
