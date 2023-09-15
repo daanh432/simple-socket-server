@@ -210,6 +210,6 @@ export class AuthenticationManager {
 
     const ruleSystem = await this.fetchRules();
 
-    return ruleSystem.canPublish(topic, socket.getUser()!);
+    return ruleSystem.canSubscribe(topic, socket.getUser()!);
   }
 }
