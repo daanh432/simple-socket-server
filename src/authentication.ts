@@ -120,6 +120,7 @@ export class AuthenticationManager {
   private static instance = new AuthenticationManager();
   private readonly authWebhookUrl: string;
   private readonly rulesWebhookurl: string;
+  private readonly rulesCachedForSeconds: number;
 
   private _ruleAccessSystem: RuleAccessSystem | undefined;
   private _ruleAccessSystemCacheTime: number = 0;
@@ -131,6 +132,11 @@ export class AuthenticationManager {
   constructor() {
     this.authWebhookUrl = process.env.AUTH_WEBHOOK_URL ?? 'http://127.0.0.1:8080/api/v1/socket/auth';
     this.rulesWebhookurl = process.env.AUTH_RULES_WEBHOOK_URL ?? 'http://127.0.0.1:8080/api/v1/socket/rules';
+
+    this.rulesCachedForSeconds = parseInt(process.env.AUTH_RULES_CACHE_SECONDS ?? '300') ?? null; // 5 minutes fallback
+    if (this.rulesCachedForSeconds == null || Number.isNaN(this.rulesCachedForSeconds) || this.rulesCachedForSeconds <= 0) {
+      this.rulesCachedForSeconds = 5 * 60; // 5 minutes fallback
+    }
   }
 
   public async authenticate(data: unknown, socket: SocketConnection): Promise<boolean> {
@@ -185,7 +191,7 @@ export class AuthenticationManager {
 
       // create a new RuleAccessSystem and cache it
       this._ruleAccessSystem = new RuleAccessSystem(rules as Record<string, Rule>);
-      this._ruleAccessSystemCacheTime = Date.now() + 5 * 60 * 1000; // 5 minutes
+      this._ruleAccessSystemCacheTime = Date.now() + this.rulesCachedForSeconds * 1000;
       return this._ruleAccessSystem;
     } catch (error) {
       console.error(`Error whilst retrieving rules from rules webhook.`, error);
