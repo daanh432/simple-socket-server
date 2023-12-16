@@ -1,5 +1,5 @@
 # Use an official Node.js runtime as the base image
-FROM node:18 as builder
+FROM node:20 as builder
 
 WORKDIR /app
 COPY package*.json ./
@@ -11,7 +11,7 @@ RUN npm run build
 # Remove development dependencies
 RUN npm prune --production
 
-FROM node:18
+FROM node:20
 
 WORKDIR /app
 COPY --from=builder /app/node_modules ./node_modules
